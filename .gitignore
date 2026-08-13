@@ -1,0 +1,22 @@
+# Binaries & Build Artifacts
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.o
+
+# Local Data Directories & Runtime Logs
+/data/
+*.wal
+*.sst
+
+# Local Notes & Tuning Guides
+paraChanges.md
+
+# IDE & OS Metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
