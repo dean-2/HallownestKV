@@ -10,7 +10,7 @@ import (
 const (
 	DefaultMaxLevel       = 16
 	DefaultP              = 0.25
-	DefaultFlushThreshold = 4 * 1024 * 1024 // 4 MB
+	DefaultFlushThreshold = 2 * 1024 * 1024 // 2 MB for Ultra-Durability profile
 )
 
 // Node represents an entry in the SkipList.

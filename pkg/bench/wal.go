@@ -47,7 +47,7 @@ func DefaultWALOptions(dir string) WALOptions {
 	return WALOptions{
 		SyncOnWrite: true,
 		DirPath:     dir,
-		SegmentSize: 16 * 1024 * 1024, // 16 MB default segment limit for Financial & ACID profile
+		SegmentSize: 8 * 1024 * 1024, // 8 MB default segment limit for Ultra-Durability profile
 	}
 }
 
