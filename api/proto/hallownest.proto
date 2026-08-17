@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package hallownest;
+
+option go_package = "github.com/utkarshraj/hallownestkv/api/proto";
+
+// StagwayService defines the gRPC service for HallownestKV network communication.
+service StagwayService {
+  // Client Storage Operations
+  rpc PutGeo (PutGeoRequest) returns (PutGeoResponse);
+  rpc GetGeo (GetGeoRequest) returns (GetGeoResponse);
+  rpc FocusTombstone (TombstoneRequest) returns (TombstoneResponse);
+
+  // Inter-Node Raft Consensus Operations
+  rpc RequestVote (VoteRequest) returns (VoteReply);
+  rpc AppendEntries (AppendRequest) returns (AppendReply);
+}
+
+message PutGeoRequest {
+  bytes key = 1;
+  bytes value = 2;
+}
+
+message PutGeoResponse {
+  bool success = 1;
+  int64 index = 2;
+  int64 term = 3;
+  string leader_addr = 4;
+  string error_msg = 5;
+}
+
+message GetGeoRequest {
+  bytes key = 1;
+}
+
+message GetGeoResponse {
+  bool found = 1;
+  bytes value = 2;
+  bool tombstone = 3;
+  string error_msg = 4;
+}
+
+message TombstoneRequest {
+  bytes key = 1;
+}
+
+message TombstoneResponse {
+  bool success = 1;
+  int64 index = 2;
+  int64 term = 3;
+  string leader_addr = 4;
+  string error_msg = 5;
+}
+
+message VoteRequest {
+  int64 term = 1;
+  int64 candidate_id = 2;
+  int64 last_log_index = 3;
+  int64 last_log_term = 4;
+}
+
+message VoteReply {
+  int64 term = 1;
+  bool vote_granted = 2;
+}
+
+message RaftEntry {
+  int64 index = 1;
+  int64 term = 2;
+  bytes key = 3;
+  bytes value = 4;
+  bool tombstone = 5;
+}
+
+message AppendRequest {
+  int64 term = 1;
+  int64 leader_id = 2;
+  int64 prev_log_index = 3;
+  int64 prev_log_term = 4;
+  repeated RaftEntry entries = 5;
+  int64 leader_commit = 6;
+}
+
+message AppendReply {
+  int64 term = 1;
+  bool success = 2;
+}
