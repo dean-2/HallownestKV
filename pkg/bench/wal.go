@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 )
 
@@ -151,7 +152,7 @@ func (w *WAL) Sync() error {
 	return w.file.Sync()
 }
 
-// Recover reads the WAL sequentially from beginning to end, verifying CRC32 checksums.
+// Recover reads the active WAL sequentially from beginning to end, verifying CRC32 checksums.
 func (w *WAL) Recover() ([]LogEntry, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -223,6 +224,83 @@ func (w *WAL) Recover() ([]LogEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// ReplayWAL scans all .wal segment files in dir, validates CRC32 checksums,
+// and invokes applyFn for every valid record found to recover database state after a crash.
+func ReplayWAL(dir string, applyFn func(key, value []byte, tombstone bool)) (int, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to read wal dir: %w", err)
+	}
+
+	var walFiles []string
+	for _, f := range files {
+		if !f.IsDir() && filepath.Ext(f.Name()) == ".wal" {
+			walFiles = append(walFiles, filepath.Join(dir, f.Name()))
+		}
+	}
+
+	sort.Strings(walFiles)
+	replayedCount := 0
+
+	for _, walPath := range walFiles {
+		walFile, err := os.OpenFile(walPath, os.O_RDONLY, 0644)
+		if err != nil {
+			return replayedCount, fmt.Errorf("failed to open wal file for recovery %s: %w", walPath, err)
+		}
+
+		headerBuf := make([]byte, HeaderSize)
+
+		for {
+			_, err := io.ReadFull(walFile, headerBuf)
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				break
+			}
+			if err != nil {
+				walFile.Close()
+				return replayedCount, fmt.Errorf("failed to read wal header in %s: %w", walPath, err)
+			}
+
+			expectedCRC := binary.BigEndian.Uint32(headerBuf[0:4])
+			keyLen := binary.BigEndian.Uint32(headerBuf[4:8])
+			valLen := binary.BigEndian.Uint32(headerBuf[8:12])
+			tombstone := headerBuf[12] == 1
+
+			bodyLen := keyLen + valLen
+			bodyBuf := make([]byte, bodyLen)
+
+			if _, err := io.ReadFull(walFile, bodyBuf); err != nil {
+				if err == io.EOF || err == io.ErrUnexpectedEOF {
+					break
+				}
+				walFile.Close()
+				return replayedCount, fmt.Errorf("failed to read wal body in %s: %w", walPath, err)
+			}
+
+			checkBuf := make([]byte, 9+bodyLen)
+			copy(checkBuf[0:9], headerBuf[4:13])
+			copy(checkBuf[9:], bodyBuf)
+
+			actualCRC := crc32.ChecksumIEEE(checkBuf)
+			if expectedCRC != actualCRC {
+				walFile.Close()
+				return replayedCount, fmt.Errorf("%w: expected %d, got %d", ErrCRCMismatch, expectedCRC, actualCRC)
+			}
+
+			key := bodyBuf[:keyLen]
+			val := bodyBuf[keyLen:]
+
+			applyFn(key, val, tombstone)
+			replayedCount++
+		}
+		walFile.Close()
+	}
+
+	return replayedCount, nil
 }
 
 // Close flushes and closes the active WAL file.

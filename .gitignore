@@ -12,8 +12,10 @@
 *.wal
 *.sst
 
-# Local Notes & Tuning Guides
+# Local Notes, Tuning Guides & Proposals
 paraChanges.md
+Omnikon_Submission_Proposal.*
+/scratch/
 
 # IDE & OS Metadata
 .DS_Store
