@@ -115,6 +115,12 @@ func (s *StagwayServer) handleConnection(conn net.Conn) {
 			return
 		}
 
+		// Detect HTTP/2 Preface from gRPC tools (grpcui / grpcurl / Postman)
+		if headerBuf[0] == 'P' && headerBuf[1] == 'R' && headerBuf[2] == 'I' && headerBuf[3] == ' ' {
+			s.handleGRPCConnection(conn)
+			return
+		}
+
 		op := headerBuf[0]
 		keyLen := binary.BigEndian.Uint32(headerBuf[1:5])
 		valLen := binary.BigEndian.Uint32(headerBuf[5:9])
@@ -141,6 +147,26 @@ func (s *StagwayServer) handleConnection(conn net.Conn) {
 			s.sendWriteResponse(conn, idx, term, isLeader, err)
 		}
 	}
+}
+
+func (s *StagwayServer) handleGRPCConnection(conn net.Conn) {
+	// Send HTTP/2 SETTINGS frame (empty settings)
+	settingsFrame := []byte{
+		0x00, 0x00, 0x00, // Length: 0
+		0x04,             // Type: SETTINGS (4)
+		0x00,             // Flags: 0
+		0x00, 0x00, 0x00, 0x00, // Stream ID: 0
+	}
+	_, _ = conn.Write(settingsFrame)
+
+	// Send HTTP/2 SETTINGS ACK
+	ackFrame := []byte{
+		0x00, 0x00, 0x00, // Length: 0
+		0x04,             // Type: SETTINGS (4)
+		0x01,             // Flags: ACK (1)
+		0x00, 0x00, 0x00, 0x00, // Stream ID: 0
+	}
+	_, _ = conn.Write(ackFrame)
 }
 
 func (s *StagwayServer) sendWriteResponse(conn net.Conn, index, term int, isLeader bool, err error) {

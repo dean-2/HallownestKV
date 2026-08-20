@@ -1,0 +1,41 @@
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hallownest-node1
+    command: ["--node-id=1", "--port=50051", "--http-port=8081", "--data-dir=/app/data/node1"]
+    ports:
+      - "50051:50051"
+      - "8081:8081"
+    volumes:
+      - node1-data:/app/data/node1
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hallownest-node2
+    command: ["--node-id=2", "--port=50052", "--http-port=8082", "--data-dir=/app/data/node2"]
+    ports:
+      - "50052:50052"
+      - "8082:8082"
+    volumes:
+      - node2-data:/app/data/node2
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hallownest-node3
+    command: ["--node-id=3", "--port=50053", "--http-port=8083", "--data-dir=/app/data/node3"]
+    ports:
+      - "50053:50053"
+      - "8083:8083"
+    volumes:
+      - node3-data:/app/data/node3
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
